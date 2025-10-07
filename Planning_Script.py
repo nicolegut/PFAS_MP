@@ -16,7 +16,7 @@ UCMR_All = "UCMR5_All"
 ZIPCodes = "UCMR5_ZIPCodes"
 UCMR_data = pd.read_csv(f"{path}/{UCMR_All}.txt", sep="\t", encoding="latin1")
 ZIP_data = pd.read_csv(f"{path}/{ZIPCodes}.txt", sep="\t", encoding="latin1")
-CWS_data = C:\Duke\Year 2\MP\PFAS_MP.gdb\CWS_Points
+CWS_data = "C:/Duke/Year 2/MP/PFAS_MP.gdb/CWS_Points"
 
 
 ## Zip code data need to make sure they have leading zeros!!
@@ -51,14 +51,68 @@ Filtered_UCMR = UCMR_data[
 
 ## Merge the datasets together (join by zip code? hopefully)
 ##one facility serves muliple zip codes --> need to figure out how to best do this
-# Combine_UCMR = pd.merge(ZIP_data, UCMR_data, on="PWSID", how="XXXXX")
 
 # Merge with ZIP codes
 # look at the duplicate values for pwsid and zip codes
 Combine_UCMR = Filtered_UCMR.merge(ZIP_data, on="PWSID", how="left")
 
-UCMR_narm = Combine_UCMR.dropna(subset=["AnalyticalResultValue"])
-# checked for duplicates, no duplicate values
+##almost 5.5x more rows when joined because of duplicate dates/ zipcodes associated with the PWSIDs
+
+
+"""
+This code assesses multiple PWSIDs serving single zip codes
+the count_duplicates function just provides a count of pwsids associated with zips
+the count_PWSIDs_serving_zips function provides the names of the PWSIDs
+"""
+
+PWSID_Zip_dupl = {}
+PWSID_Zip_duplID = {}
+PWSID_ZIP_tuples = [tuple(row) for row in ZIP_data[["PWSID", "ZIPCODE"]].values]
+
+
+# defining a function to assess duplicate PWSID and ZIPCodes for our subset datasets
+# This function just provides a count of the pwsids
+def count_duplicates(dict, pairs):
+    for i, j in pairs:
+        if j in dict:
+            dict[j] += 1
+        else:
+            dict[j] = 1
+
+
+##This function provides the actual PWSID numbers that are associated with the Zip
+def count_PWSID_serving_ZIPs(dict, pairs):
+    for pwsid, zipcode in pairs:
+        if zipcode not in dict:
+            dict[zipcode] = {pwsid}
+        else:
+            dict[zipcode].add(pwsid)
+
+
+count_duplicates(PWSID_Zip_dupl, PWSID_ZIP_tuples)
+
+count_PWSID_serving_ZIPs(PWSID_Zip_duplID, PWSID_ZIP_tuples)
+
+
+"""
+Using the combined data, potentially taking max value for each 
+Ideas: taking the max, min, median or mean 
+- median/ mean would lose the PWSID association
+
+group by Zipcodes
+- need to maintain other values for max and mins
+"""
+
+
+def max_conc_zip(df, contaminant, watertype):
+    filtered_df = df[
+        (df["Contaminant"] == contaminant) & (df["FacilityWaterType"] == watertype)
+    ]
+    grouped_df = filtered_df.groupby("ZIPCODE").max("AnalyticalResultValue")
+    return grouped_df
+
+
+Max_PFOA_GW = max_conc_zip(Combine_UCMR, "PFOA", "GW")
 
 
 ##### Breaking the data into compound/ source type of interest
@@ -66,60 +120,27 @@ UCMR_narm = Combine_UCMR.dropna(subset=["AnalyticalResultValue"])
 ## will create 4 dataframes
 
 # subset for contaminant/ water type and check for duplicate combinations
+# Using the current combined data, but may change to
 
-UCMR_PFOA_GW = UCMR_narm[
-    (UCMR_narm["Contaminant"] == "PFOA") & (UCMR_narm["FacilityWaterType"] == "GW")
+UCMR_PFOA_GW = Combine_UCMR[
+    (Combine_UCMR["Contaminant"] == "PFOA")
+    & (Combine_UCMR["FacilityWaterType"] == "GW")
 ]
 
-UCMR_PFOA_SW = UCMR_narm[
-    (UCMR_narm["Contaminant"] == "PFOA") & (UCMR_narm["FacilityWaterType"] == "SW")
+PFOA_GW_maxtest = UCMR_PFOA_GW.groupby("ZIPCODE").max("AnalyticalResultValue")
+
+UCMR_PFOA_SW = Combine_UCMR[
+    (Combine_UCMR["Contaminant"] == "PFOA")
+    & (Combine_UCMR["FacilityWaterType"] == "SW")
 ]
-UCMR_PFOS_GW = UCMR_narm[
-    (UCMR_narm["Contaminant"] == "PFOS") & (UCMR_narm["FacilityWaterType"] == "GW")
+UCMR_PFOS_GW = Combine_UCMR[
+    (Combine_UCMR["Contaminant"] == "PFOS")
+    & (Combine_UCMR["FacilityWaterType"] == "GW")
 ]
-UCMR_PFOS_SW = UCMR_narm[
-    (UCMR_narm["Contaminant"] == "PFOS") & (UCMR_narm["FacilityWaterType"] == "SW")
+UCMR_PFOS_SW = Combine_UCMR[
+    (Combine_UCMR["Contaminant"] == "PFOS")
+    & (Combine_UCMR["FacilityWaterType"] == "SW")
 ]
-
-
-# making tuples for combinations of pwsid/zip for each subset
-# checking if there are duplicate tuples
-# tuple test
-PFOA_GW_tuples = [
-    tuple(row)
-    for row in UCMR_PFOA_GW[["PWSID", "AnalyticalResultValue", "ZIPCODE"]].values
-]
-
-"""
-add into tuples the concentration data, 
-to see if the duplicates have differing concentrations
-
-is there value in keeping the pwsid/ zip uniques? i deleted but could put back
-"""
-
-# splitting duplicates
-PFOA_GW_dict = {}
-
-
-# defining a function to assess duplicate PWSID and ZIPCodes for our subset datasets
-def count_duplicates(dict, pairs):
-    for i in pairs:
-        if i in dict:
-            dict[i] += 1
-        else:
-            dict[i] = 1
-
-
-count_duplicates(PFOA_GW_dict, PFOA_GW_tuples)
-"""
-okay i have the distinct combinations of zip codes/pwsid/concentration data
-need to figure out how many zip codes/ which ones have differing values
-- could also be dates? do the same zips get sampled multiple times 
-
--okay it is dates/ sample event codes - for PWSIDs that sample more than once in the compliance
-- determine how many of these there are?
-
-"""
 
 
 ##### Subset the data into test/ control groups
