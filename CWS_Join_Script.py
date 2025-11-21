@@ -98,8 +98,7 @@ arcpy.env.overwriteOutput = True
 # arcpy.env.parallelProcessingFactor = "100%"
 
 
-##create the dataframes for each and take the max value per PWSID
-# only take the max after separating the dataframes
+##create the dataframes for each Contaminant/ Water Type pair
 
 UCMR_PFOA_GW = Filtered_UCMR[
     (Filtered_UCMR["Contaminant"] == "PFOA")

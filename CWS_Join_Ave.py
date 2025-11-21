@@ -12,9 +12,7 @@ import arcpy, os, time
 # UCMR Data
 path = "C:/Duke/Year 2/MP/Data/Initial Data/ucmr5_occurrence_data"
 UCMR_All = "UCMR5_All"
-ZIPCodes = "UCMR5_ZIPCodes"
 UCMR_data = pd.read_csv(f"{path}/{UCMR_All}.txt", sep="\t", encoding="latin1")
-ZIP_data = pd.read_csv(f"{path}/{ZIPCodes}.txt", sep="\t", encoding="latin1")
 CWS_data = "C:/Duke/Year 2/MP/PFAS_MP.gdb/CWS_Points"
 
 
@@ -41,11 +39,7 @@ CWS_pts = os.path.join(fgdb, "CWS_Points")
 #### Data Wrangling: ##################################################
 
 
-##### Upload UCMR and PWSID+zip data
-
-##make sure to put in leading zeros
-ZIP_data[["ZIPCODE"]] = ZIP_data[["ZIPCODE"]].astype(str)
-ZIP_data[["ZIPCODE"]] = ZIP_data[["ZIPCODE"]].apply(lambda x: x.str.zfill(5))
+##### Filter UCMR data
 
 ##filter out unwanted contaminants and water types
 Filtered_UCMR = UCMR_data[
@@ -163,6 +157,7 @@ def PWSID_summary_stats_calc(df):
         maxes.rename("MaxValue"),
         ranges.rename("Range"),
         stdev.rename("StdDev"),
+        # add count!
     ]
     merge_stats = pd.concat(merge_stats, axis=1)
 
@@ -211,5 +206,5 @@ for table in table_list:
 
 ## Interpolate with IDW
 # Set environment settings
-print(FC_List)
-arcpy.env.workspace = fgdb
+# print(FC_List)
+# arcpy.env.workspace = fgdb
