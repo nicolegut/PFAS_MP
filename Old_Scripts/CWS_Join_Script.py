@@ -12,7 +12,9 @@ import arcpy, os, time
 # UCMR Data
 path = "C:/Duke/Year 2/MP/Data/Initial Data/ucmr5_occurrence_data"
 UCMR_All = "UCMR5_All"
+ZIPCodes = "UCMR5_ZIPCodes"
 UCMR_data = pd.read_csv(f"{path}/{UCMR_All}.txt", sep="\t", encoding="latin1")
+ZIP_data = pd.read_csv(f"{path}/{ZIPCodes}.txt", sep="\t", encoding="latin1")
 CWS_data = "C:/Duke/Year 2/MP/PFAS_MP.gdb/CWS_Points"
 
 
@@ -39,7 +41,11 @@ CWS_pts = os.path.join(fgdb, "CWS_Points")
 #### Data Wrangling: ##################################################
 
 
-##### Filter UCMR data
+##### Upload UCMR and PWSID+zip data
+
+##make sure to put in leading zeros
+ZIP_data[["ZIPCODE"]] = ZIP_data[["ZIPCODE"]].astype(str)
+ZIP_data[["ZIPCODE"]] = ZIP_data[["ZIPCODE"]].apply(lambda x: x.str.zfill(5))
 
 ##filter out unwanted contaminants and water types
 Filtered_UCMR = UCMR_data[
@@ -47,7 +53,7 @@ Filtered_UCMR = UCMR_data[
     & (UCMR_data["FacilityWaterType"].isin(["GW", "SW"]))
 ]
 
-# think about this --> also throws a warning about copies/ slices
+# think about this
 Filtered_UCMR["AnalyticalResultValue"] = Filtered_UCMR["AnalyticalResultValue"].fillna(
     0.004 * (1 / 3)
 )
@@ -92,8 +98,7 @@ arcpy.env.overwriteOutput = True
 # arcpy.env.parallelProcessingFactor = "100%"
 
 
-##create the dataframes for each and take the max value per PWSID
-# only take the max after separating the dataframes
+##create the dataframes for each Contaminant/ Water Type pair
 
 UCMR_PFOA_GW = Filtered_UCMR[
     (Filtered_UCMR["Contaminant"] == "PFOA")
@@ -114,97 +119,28 @@ UCMR_PFOS_SW = Filtered_UCMR[
     & (Filtered_UCMR["FacilityWaterType"] == "SW")
 ]
 
+# taking the max value of each pwsid for the separate datasets
+PFOA_GW_max = UCMR_PFOA_GW.loc[
+    UCMR_PFOA_GW.groupby("PWSID")["AnalyticalResultValue"].idxmax()
+]
+PFOA_SW_max = UCMR_PFOA_SW.loc[
+    UCMR_PFOA_SW.groupby("PWSID")["AnalyticalResultValue"].idxmax()
+]
+PFOS_GW_max = UCMR_PFOS_GW.loc[
+    UCMR_PFOS_GW.groupby("PWSID")["AnalyticalResultValue"].idxmax()
+]
+PFOS_SW_max = UCMR_PFOS_SW.loc[
+    UCMR_PFOS_SW.groupby("PWSID")["AnalyticalResultValue"].idxmax()
+]
 
-UCMR_PFOA_GW_vis = UCMR_PFOA_GW[["PWSID", "PWSName", "FacilityName", "CollectionDate"]]
+## Convert to GIS table
 
+pfoa_sw_tbl = df_to_gdb(PFOA_SW_max, fgdb, "PFOA_SW")
+pfoa_gw_tbl = df_to_gdb(PFOA_GW_max, fgdb, "PFOA_GW")
+pfos_sw_tbl = df_to_gdb(PFOS_SW_max, fgdb, "PFOS_SW")
+pfos_gw_tbl = df_to_gdb(PFOS_GW_max, fgdb, "PFOS_GW")
 
-def PWSID_summary_stats_calc(df):
-
-    df = df.copy()
-
-    df["CollectionDate"] = pd.to_datetime(df["CollectionDate"], format="%m/%d/%Y")
-
-    df = df.sort_values(["PWSID", "CollectionDate"], ascending=[True, False])
-
-    # rank dates within each PWSID (1 = most recent)
-    df["date_rank"] = df.groupby("PWSID")["CollectionDate"].rank(
-        method="dense", ascending=False
-    )
-
-    # keep rows whose dates fall in the 4 most recent unique dates
-    df_recent = df[df["date_rank"] <= 4]
-
-    # grouping by PWSID
-    group_cols = "PWSID"
-    # taking summary stats of analytical result value
-    metric_cols = "AnalyticalResultValue"
-    # columns that we would like to maintain in the dataframes
-    keep_cols = [
-        "PWSID",
-        "PWSName",
-        "Size",
-        "FacilityWaterType",
-        "Contaminant",
-        "MRL",
-        "Units",
-        "Region",
-        "State",
-    ]
-
-    # creating a dataframe with only the columns that we could like to keep
-    # dropping duplicate rows in the columns that we wanted to maintain
-    # (one obs per PWSID + adding on the summary stats after)
-    df1 = df_recent[keep_cols].drop_duplicates(subset=group_cols, keep="first").copy()
-
-    # summary stats!
-    # mean
-    means = df_recent.groupby(group_cols)[metric_cols].mean()
-    mins = df_recent.groupby(group_cols)[metric_cols].min()
-    # max
-    maxes = df_recent.groupby(group_cols)[metric_cols].max()
-    # range
-    ranges = maxes - mins
-    # stdev
-    stdev = df_recent.groupby(group_cols)[metric_cols].std()
-    # count
-    counts = df_recent.groupby(group_cols)[metric_cols].count()
-    # date ranges
-    min_date = df_recent.groupby("PWSID")["CollectionDate"].min()
-    max_date = df_recent.groupby("PWSID")["CollectionDate"].max()
-
-    # merging/ renaming the summary stats in a table
-    merge_stats = [
-        means.rename("MeanValue"),
-        mins.rename("MinValue"),
-        maxes.rename("MaxValue"),
-        ranges.rename("Range"),
-        stdev.rename("StdDev"),
-        counts.rename("CountofPoints"),
-        min_date.rename("FirstCollectionDate"),
-        max_date.rename("LastCollectionDate"),
-    ]
-
-    merge_stats = pd.concat(merge_stats, axis=1)
-
-    # merging the summary stats table by PWSID to the cleaned df
-    final_df = df1.merge(
-        right=merge_stats, right_index=True, left_on=group_cols, how="right"
-    ).copy()
-    return final_df
-
-
-PFOA_GW_stats = PWSID_summary_stats_calc(UCMR_PFOA_GW)
-PFOA_SW_stats = PWSID_summary_stats_calc(UCMR_PFOA_SW)
-PFOS_GW_stats = PWSID_summary_stats_calc(UCMR_PFOS_GW)
-PFOS_SW_stats = PWSID_summary_stats_calc(UCMR_PFOS_SW)
-
-
-pfoa_sw_tbl = df_to_gdb(PFOA_SW_stats, fgdb, "PFOA_SW")
-pfoa_gw_tbl = df_to_gdb(PFOA_GW_stats, fgdb, "PFOA_GW")
-pfos_sw_tbl = df_to_gdb(PFOS_SW_stats, fgdb, "PFOS_SW")
-pfos_gw_tbl = df_to_gdb(PFOS_GW_stats, fgdb, "PFOS_GW")
-
-## Join to CWS
+## Join to Zips
 
 table_list = [
     pfoa_gw_tbl,
@@ -228,3 +164,8 @@ for table in table_list:
     print(joinedtable)
     arcpy.management.CopyFeatures(joinedtable, outpath)
     FC_List.append(outpath)
+
+## Interpolate with IDW
+# Set environment settings
+print(FC_List)
+arcpy.env.workspace = fgdb
