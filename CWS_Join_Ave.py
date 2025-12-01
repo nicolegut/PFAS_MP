@@ -115,24 +115,20 @@ UCMR_PFOS_SW = Filtered_UCMR[
 ]
 
 
-UCMR_PFOA_GW_vis = UCMR_PFOA_GW[["PWSID", "PWSName", "FacilityName", "CollectionDate"]]
-
-
 def PWSID_summary_stats_calc(df):
 
     df = df.copy()
-
     df["CollectionDate"] = pd.to_datetime(df["CollectionDate"], format="%m/%d/%Y")
 
-    df = df.sort_values(["PWSID", "CollectionDate"], ascending=[True, False])
+    # max date per PWSID
+    max_dates = df.groupby("PWSID")["CollectionDate"].max()
 
-    # rank dates within each PWSID (1 = most recent)
-    df["date_rank"] = df.groupby("PWSID")["CollectionDate"].rank(
-        method="dense", ascending=False
-    )
+    # attach max date to each row
+    df = df.merge(max_dates.rename("MostRecentDate"), on="PWSID", how="left")
 
-    # keep rows whose dates fall in the 4 most recent unique dates
-    df_recent = df[df["date_rank"] <= 4]
+    # filter to last 1 year
+    one_year = pd.Timedelta(days=365)
+    df_recent = df[df["CollectionDate"] >= df["MostRecentDate"] - one_year].copy()
 
     # grouping by PWSID
     group_cols = "PWSID"
