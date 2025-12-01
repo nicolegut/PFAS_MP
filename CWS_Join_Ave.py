@@ -117,19 +117,6 @@ UCMR_PFOS_SW = Filtered_UCMR[
 
 def PWSID_summary_stats_calc(df):
 
-    df = df.copy()
-    df["CollectionDate"] = pd.to_datetime(df["CollectionDate"], format="%m/%d/%Y")
-
-    # max date per PWSID
-    max_dates = df.groupby("PWSID")["CollectionDate"].max()
-
-    # attach max date to each row
-    df = df.merge(max_dates.rename("MostRecentDate"), on="PWSID", how="left")
-
-    # filter to last 1 year
-    one_year = pd.Timedelta(days=365)
-    df_recent = df[df["CollectionDate"] >= df["MostRecentDate"] - one_year].copy()
-
     # grouping by PWSID
     group_cols = "PWSID"
     # taking summary stats of analytical result value
@@ -150,23 +137,28 @@ def PWSID_summary_stats_calc(df):
     # creating a dataframe with only the columns that we could like to keep
     # dropping duplicate rows in the columns that we wanted to maintain
     # (one obs per PWSID + adding on the summary stats after)
-    df1 = df_recent[keep_cols].drop_duplicates(subset=group_cols, keep="first").copy()
+
+    df["CollectionDate"] = pd.to_datetime(df["CollectionDate"], format="%m/%d/%Y")
+
+    df1 = df[keep_cols].drop_duplicates(subset=group_cols, keep="first").copy()
 
     # summary stats!
     # mean
-    means = df_recent.groupby(group_cols)[metric_cols].mean()
-    mins = df_recent.groupby(group_cols)[metric_cols].min()
+    means = df.groupby(group_cols)[metric_cols].mean()
+    mins = df.groupby(group_cols)[metric_cols].min()
     # max
-    maxes = df_recent.groupby(group_cols)[metric_cols].max()
+    maxes = df.groupby(group_cols)[metric_cols].max()
     # range
     ranges = maxes - mins
     # stdev
-    stdev = df_recent.groupby(group_cols)[metric_cols].std()
+    stdev = df.groupby(group_cols)[metric_cols].std()
     # count
-    counts = df_recent.groupby(group_cols)[metric_cols].count()
+    counts = df.groupby(group_cols)[metric_cols].count()
     # date ranges
-    min_date = df_recent.groupby("PWSID")["CollectionDate"].min()
-    max_date = df_recent.groupby("PWSID")["CollectionDate"].max()
+    min_date = df.groupby("PWSID")["CollectionDate"].min()
+    max_date = df.groupby("PWSID")["CollectionDate"].max()
+
+    date_count = df.groupby("PWSID")["CollectionDate"].nunique()
 
     # merging/ renaming the summary stats in a table
     merge_stats = [
@@ -176,6 +168,7 @@ def PWSID_summary_stats_calc(df):
         ranges.rename("Range"),
         stdev.rename("StdDev"),
         counts.rename("CountofPoints"),
+        date_count.rename("CountofDates"),
         min_date.rename("FirstCollectionDate"),
         max_date.rename("LastCollectionDate"),
     ]
