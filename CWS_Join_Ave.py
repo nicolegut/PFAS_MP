@@ -1,13 +1,11 @@
 ### CWS Join Script
 ###Goal: to make four datasets of points
-
+##use arcpy env to run this one!
 
 ##Importing Packages
 import pandas as pd
 import arcpy, os, time
 
-
-# time, os, arcpy packages? - used in Hazen
 
 # UCMR Data
 path = "C:/Duke/Year 2/MP/Data/Initial Data/ucmr5_occurrence_data"
@@ -18,11 +16,9 @@ CWS_data = "C:/Duke/Year 2/MP/PFAS_MP.gdb/CWS_Points"
 
 basepath = "C:/Duke/Year 2/MP/"
 fgdb = os.path.join(basepath, "PFAS_MP.gdb")
+# CWS points were created by the 'points from polygon centroid' in arcpro/ not in a script
+# centroid points were forced to be inside the boundary of their polygons
 CWS_pts = os.path.join(fgdb, "CWS_Points")
-
-
-## Zip code data need to make sure they have leading zeros!!
-## check both UCMR and Hazen data
 
 
 # Hazen Data
@@ -53,6 +49,7 @@ Filtered_UCMR["AnalyticalResultValue"] = Filtered_UCMR["AnalyticalResultValue"].
 )
 
 
+# function for converting df to gdb dataframe
 def df_to_gdb(df, gdb_path, table_name):
     # Create a table path
     table_path = f"{gdb_path}/{table_name}"
@@ -84,17 +81,13 @@ def df_to_gdb(df, gdb_path, table_name):
 
 ##Analysis
 
-# edit these: ryan's code for setting workspaces/ environments
-
 print("Setting Workspace")
 arcpy.env.workspace = fgdb
 arcpy.env.overwriteOutput = True
 # arcpy.env.parallelProcessingFactor = "100%"
 
 
-##create the dataframes for each and take the max value per PWSID
-# only take the max after separating the dataframes
-
+##create the dataframes for each contaminant/ water pair
 UCMR_PFOA_GW = Filtered_UCMR[
     (Filtered_UCMR["Contaminant"] == "PFOA")
     & (Filtered_UCMR["FacilityWaterType"] == "GW")
@@ -115,8 +108,8 @@ UCMR_PFOS_SW = Filtered_UCMR[
 ]
 
 
+# function for adding summary stats to the filtered dfs
 def PWSID_summary_stats_calc(df):
-
     # grouping by PWSID
     group_cols = "PWSID"
     # taking summary stats of analytical result value
@@ -182,32 +175,34 @@ def PWSID_summary_stats_calc(df):
     return final_df
 
 
+# adding summary stats to the filtered datasets
 PFOA_GW_stats = PWSID_summary_stats_calc(UCMR_PFOA_GW)
 PFOA_SW_stats = PWSID_summary_stats_calc(UCMR_PFOA_SW)
 PFOS_GW_stats = PWSID_summary_stats_calc(UCMR_PFOS_GW)
 PFOS_SW_stats = PWSID_summary_stats_calc(UCMR_PFOS_SW)
 
 
+# exporting to gdb for use in arc
 pfoa_sw_tbl = df_to_gdb(PFOA_SW_stats, fgdb, "PFOA_SW")
 pfoa_gw_tbl = df_to_gdb(PFOA_GW_stats, fgdb, "PFOA_GW")
 pfos_sw_tbl = df_to_gdb(PFOS_SW_stats, fgdb, "PFOS_SW")
 pfos_gw_tbl = df_to_gdb(PFOS_GW_stats, fgdb, "PFOS_GW")
 
-## Join to CWS
 
+## Join to CWS points
 table_list = [
     pfoa_gw_tbl,
     pfos_sw_tbl,
     pfos_gw_tbl,
     pfoa_sw_tbl,
-]  # This list can be altered to delineate IDWs for select contaminants
+]
 FC_List = []
 
-
+# joining the CWS points to the gdb tables - need to change the outpath name for future runs
 for table in table_list:
     table_name = str(table).replace("_tbl", "_output").replace("//", "/")
     print("table_name is " + table_name)
-    outpath = table_name + "_Oct2025"
+    outpath = table_name + "_Dec2025"
     print("outpath is " + outpath)
     if os.path.exists(outpath):
         os.remove(outpath)
@@ -217,3 +212,18 @@ for table in table_list:
     print(joinedtable)
     arcpy.management.CopyFeatures(joinedtable, outpath)
     FC_List.append(outpath)
+
+
+# exporting to csv for future analysis - if needed
+PFOA_GW_stats.to_csv(
+    f"{basepath}/Data/stats_csvs/PFOA_GW_stats.csv", sep=",", index=False
+)
+PFOA_SW_stats.to_csv(
+    f"{basepath}/Data/stats_csvs/PFOA_SW_stats.csv", sep=",", index=False
+)
+PFOS_GW_stats.to_csv(
+    f"{basepath}/Data/stats_csvs/PFOS_GW_stats.csv", sep=",", index=False
+)
+PFOS_SW_stats.to_csv(
+    f"{basepath}/Data/stats_csvs/PFOS_SW_stats.csv", sep=",", index=False
+)
