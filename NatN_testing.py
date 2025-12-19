@@ -122,7 +122,7 @@ df_runs_sorted = df_runs_sort.sort_values("Ave_Rank").reset_index(drop=True)
 
 # save to csv
 df_runs_sorted.to_csv(
-    "C:/Duke/Year 2/MP/Interpolation_testing/NatN/NatN_sorted_RMSE.csv", ","
+    "C:/Duke/Year 2/MP/Interpolation_testing/NatN/NatN_AveRank_Sort.csv", ","
 )
 
 
