@@ -1,5 +1,4 @@
-###this is the script for an initial testing of parameters for IDW
-## use this as the submission for
+###this is the script for an initial testing of parameters for Universal Kriging
 
 ##Importing Packages
 import pandas as pd
@@ -15,8 +14,8 @@ fgdb = os.path.join(basepath, "PFAS_MP.gdb")
 contig_gdb = os.path.join(fgdb, "Exp_Int_pts")
 testing_gdb = os.path.join(fgdb, "Testing_Pts")
 # change this one for different interpolations
-idw_gdb = os.path.join(basepath, "IDW_Tests.gdb")
-idw_folder = os.path.join(basepath, "Interpolation_testing\IDW")
+univkrig_gdb = os.path.join(basepath, "UnivKrig_Tests.gdb")
+univkrig_folder = os.path.join(basepath, "Interpolation_testing\UnivKrig")
 
 # paths to points for subsetting
 train_pts = os.path.join(testing_gdb, "PFOA_GW_training")
@@ -29,8 +28,9 @@ arcpy.env.extent = us_mask
 
 # field interpolating
 z_field = "MeanValue"
-# power input - general range is 0-3, default is 2
-power_inp = [0.5, 1, 2, 3]
+cell_size = 8046.7  # 5 miles in meters - previously used 10 miles, trying this out?
+
+
 #### variable search radius - RadiusVariable ({numberofPoints}, {maxDistance})
 var_rad_pts = [5, 12, 50, 100]
 # will be using the default for max distance
@@ -40,31 +40,36 @@ f_dist = [16000, 40250, 80500, 161000]
 # default is 5x cell size of output (5 mi -> 25 mi), going to use 10 / 25/ 50 / 100 mi -
 # converted to meter for map units
 f_pts = [2, 6, 12, 24]
-##tried with the default 0 at first, but needs at least 2 points to fully interpolate the map
-## as of 12/5/25 tests with 24 points have not been run
 
-cell_size = 8046.7  # 5 miles in meters - previously used 10 miles, trying this out?
-
-##Ranges of parameters are in lists above
-## creating tables of variable vs fixed search distance parameter combinations
-## will eventually be a table of all possible combinations/ settings
-## loop will iterate through the df for input parameter values
+lag_dist = [8046.7, 16093.4, 24140.1]
 
 
 # creating a table of variable radius combinations
-var_combos = list(itertools.product(power_inp, var_rad_pts))
+var_combos = list(itertools.product(var_rad_pts, lag_dist))
 
-df_var = pd.DataFrame(var_combos, columns=["power", "num_points"])
+df_var = pd.DataFrame(var_combos, columns=["num_points", "lag_dist"])
 df_var["type"] = "variable"
 
 # creating a table of fixed radius combinations
-fixed_combos = list(itertools.product(power_inp, f_dist, f_pts))
+fixed_combos = list(itertools.product(f_dist, f_pts, lag_dist))
 
-df_fix = pd.DataFrame(fixed_combos, columns=["power", "rad_dist", "f_pts"])
+df_fix = pd.DataFrame(fixed_combos, columns=["rad_dist", "f_pts", "lag_dist"])
 df_fix["type"] = "fixed"
 
+
 # final table of input combinations
-idw_combos = pd.concat([df_fix, df_var], axis=0, ignore_index=True)
+varfix_combos = pd.concat([df_fix, df_var], axis=0, ignore_index=True)
+
+# add  linear drift as column to varfix - final linear drift df
+lindrift_df = varfix_combos.copy()
+lindrift_df["SemiVar_model"] = "LinearDrift"
+
+# add quadratic drift as a column to varfix - final quad drift df
+quaddrift_df = varfix_combos.copy()
+quaddrift_df["SemiVar_model"] = "QuadDrift"
+
+# pd.concat([df_fix, df_var], axis=0, ignore_index=True)
+univkrig_combos = pd.concat([lindrift_df, quaddrift_df], axis=0, ignore_index=True)
 
 # time stamps for how long each iteration/ whole loop takes to run
 script_start = time.time()
@@ -75,38 +80,58 @@ results = []
 
 ### IDW Testing
 
-for idx, row in idw_combos.iterrows():
+for idx, row in univkrig_combos.iterrows():
 
     run_start = time.time()
 
-    if row["type"] == "variable":
+    if row["SemiVar_model"] == "QuadDrift" and row["type"] == "variable":
+        kriging_model = f"QuadraticDrift {row['lag_dist']} # # #"
         search_radius = f"VARIABLE {row['num_points']}"
-        out_name = f"V_p{str(int(row['power'])).replace('.','')}_np{str(int(row['num_points']))}"
+        out_name = f"QuV_lag{str(int(row['lag_dist']/1000))}km_np{str(int(row['num_points']))}"
+
+    elif row["SemiVar_model"] == "LinearDrift" and row["type"] == "variable":
+        kriging_model = f"LinearDrift {row['lag_dist']} # # #"
+        search_radius = f"VARIABLE {row['num_points']}"
+        out_name = f"LnV_lag{str(int(row['lag_dist']/1000))}km_np{str(int(row['num_points']))}"
+
+    elif row["SemiVar_model"] == "QuadDrift" and row["type"] == "fixed":
+        kriging_model = f"QuadraticDrift {row['lag_dist']} # # #"
+        search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
+        out_name = f"QuF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
+
+    elif row["SemiVar_model"] == "LinearDrift" and row["type"] == "fixed":
+        kriging_model = f"LinearDrift {row['lag_dist']} # # #"
+        search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
+        out_name = f"LnF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
 
     else:
-        search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
-        out_name = f"F_p{str(int(row['power'])).replace('.','')}_d{str(int(row['rad_dist']/1000)).replace('.','')}km_np{str(int(row['f_pts']))}"
+        print(f'Error: could not find parameters that matched criteria in row {idx}')
+        break
+
+    out_var_raster = os.path.join(univkrig_gdb, f"{out_name}_pdrs")
 
     # run IDW
-    out_ras = arcpy.sa.Idw(
+    out_ras = arcpy.sa.Kriging(
         in_point_features=train_pts,
         z_field=z_field,
+        kriging_model=kriging_model,
         cell_size=cell_size,
-        power=row["power"],
-        search_radius=search_radius,
+        search_radius = search_radius,
+        out_variance_prediction_raster= out_var_raster
     )
 
-    raster_path = os.path.join(idw_gdb, out_name)
+    raster_path = os.path.join(univkrig_gdb, out_name)
     out_ras.save(raster_path)
 
     results.append(
         [
             raster_path,
+            row["SemiVar_model"],
             row["type"],
-            row["power"],
+            row["lag_dist"],
             row.get("num_points"),
             row.get("rad_dist"),
-            row.get("f_pts"),
+            row.get("f_pts")
         ]
     )
 
@@ -116,18 +141,18 @@ for idx, row in idw_combos.iterrows():
     )
 
 total_dur = time.time() - script_start
-print(f"\nAll {len(idw_combos)} runs completed in {total_dur/60:.2f} minutes")
+print(f"\nAll {len(univkrig_combos)} runs completed in {total_dur/60:.2f} minutes")
 
 ## creating a table from the results
 
 df_runs = pd.DataFrame(
     results,
-    columns=["raster", "type", "power", "num_points", "distance", "f_pts"],
+    columns=["raster","SemiVar_model", "type","lag_dist", "num_points", "distance", "f_pts"],
 )
 
 
 ##SAVE AS A CSV !!! SO YOU DON'T NEED TO RUN EVERYTHING AGAIN + WAIT 20 MIN
-# df_runs_sorted.to_csv("C:/Duke/Year 2/MP/Interpolation_testing/IDW/IDW_test_runs.csv",",")
+df_runs.to_csv("C:/Duke/Year 2/MP/Interpolation_testing/UnivKrig/UnivKrig_raster_paths.csv",",")
 
 
 ### plan is to create another loop that calculates RMSE from the paths saved in the df_runs df
@@ -192,19 +217,20 @@ df_runs["MAE"] = mae_list
 
 ##loop took about 15.5 min to run
 
-# creating rankings for rmse and MAE and averaging ranks
+#creating rankings for rmse and MAE and averaging ranks
 df_runs_rmsesorted = df_runs.sort_values("RMSE").reset_index(drop=True)
-df_runs_rmsesorted["RMSE_Rank"] = range(1, len(df_runs_rmsesorted) + 1)
+df_runs_rmsesorted['RMSE_Rank'] = range(1, len(df_runs_rmsesorted) + 1)
 
 df_runs_sort = df_runs_rmsesorted.sort_values("MAE").reset_index(drop=True)
-df_runs_sort["MAE_Rank"] = range(1, len(df_runs_sort) + 1)
+df_runs_sort['MAE_Rank'] = range(1, len(df_runs_sort) + 1)
 
-df_runs_sort["Ave_Rank"] = (df_runs_sort["MAE_Rank"] + df_runs_sort["RMSE_Rank"]) / 2
+df_runs_sort['Ave_Rank'] = (df_runs_sort["MAE_Rank"] + df_runs_sort["RMSE_Rank"]) / 2
 df_runs_sorted = df_runs_sort.sort_values("Ave_Rank").reset_index(drop=True)
+
 
 # save to csv
 df_runs_sorted.to_csv(
-    "C:/Duke/Year 2/MP/Interpolation_testing/IDW/IDW_AveRank_sort.csv", ","
+    "C:/Duke/Year 2/MP/Interpolation_testing/UnivKrig/UnivKrig_AveRank_Sort.csv", ","
 )
 
 best_raster = df_runs_sorted.iloc[0]
