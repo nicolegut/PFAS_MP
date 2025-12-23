@@ -1,4 +1,4 @@
-###this is the script for an initial testing of parameters for Universal Kriging
+###this is the script for an initial testing of parameters for Ordinary Kriging
 
 ##Importing Packages
 import pandas as pd
@@ -14,21 +14,26 @@ fgdb = os.path.join(basepath, "PFAS_MP.gdb")
 contig_gdb = os.path.join(fgdb, "Exp_Int_pts")
 testing_gdb = os.path.join(fgdb, "Testing_Pts")
 # change this one for different interpolations
-univkrig_gdb = os.path.join(basepath, "UnivKrig_Tests.gdb")
-univkrig_folder = os.path.join(basepath, r"Interpolation_testing\UnivKrig")
+ordkrig_gdb = os.path.join(basepath, "OrdKrig_Tests.gdb")
+ordkrig_folder = os.path.join(basepath, r"Interpolation_testing\OrdKrig")
 
 # paths to points for subsetting
 train_pts = os.path.join(testing_gdb, "PFOA_GW_training")
 test_pts = os.path.join(testing_gdb, "PFOA_GW_testing")
 us_mask = os.path.join(fgdb, "ContigUS_Mask")
+us_snap_ras = os.path.join(fgdb, "ContigUS_Raster")
 
 arcpy.env.overwriteOutput = True
 arcpy.env.mask = us_mask
 arcpy.env.extent = us_mask
+arcpy.env.snapRaster = us_snap_ras
+arcpy.env.cellSize = us_snap_ras
+
+print(f"loaded all paths/ set environments")
 
 # field interpolating
 z_field = "MeanValue"
-cell_size = 8046.7  # 5 miles in meters - previously used 10 miles, trying this out?
+cell_size = 8046.7  # 5 mi in meters
 
 
 #### variable search radius - RadiusVariable ({numberofPoints}, {maxDistance})
@@ -45,6 +50,7 @@ f_pts = [6, 12, 24, 50]
 
 lag_dist = [8046.7, 16093.4, 24140.1]
 
+print(f"set parameter values")
 
 # creating a table of variable radius combinations
 var_combos = list(itertools.product(var_rad_pts, lag_dist))
@@ -62,16 +68,29 @@ df_fix["type"] = "fixed"
 # final table of input combinations
 varfix_combos = pd.concat([df_fix, df_var], axis=0, ignore_index=True)
 
-# add  linear drift as column to varfix - final linear drift df
-lindrift_df = varfix_combos.copy()
-lindrift_df["SemiVar_model"] = "LinearDrift"
+# types of semivariogram models for ordinary kriging
+spher_df = varfix_combos.copy()
+spher_df["SemiVar_model"] = "Spherical"
 
-# add quadratic drift as a column to varfix - final quad drift df
-quaddrift_df = varfix_combos.copy()
-quaddrift_df["SemiVar_model"] = "QuadDrift"
+circ_df = varfix_combos.copy()
+circ_df["SemiVar_model"] = "Circular"
+
+expon_df = varfix_combos.copy()
+expon_df["SemiVar_model"] = "Exponential"
+
+gaus_df = varfix_combos.copy()
+gaus_df["SemiVar_model"] = "Gaussian"
+
+linear_df = varfix_combos.copy()
+linear_df["SemiVar_model"] = "Linear"
+
 
 # pd.concat([df_fix, df_var], axis=0, ignore_index=True)
-univkrig_combos = pd.concat([lindrift_df, quaddrift_df], axis=0, ignore_index=True)
+ordkrig_combos = pd.concat(
+    [spher_df, circ_df, expon_df, gaus_df, linear_df], axis=0, ignore_index=True
+)
+
+print(f"Created the combinations table.. starting script now")
 
 # time stamps for how long each iteration/ whole loop takes to run
 script_start = time.time()
@@ -82,51 +101,87 @@ results = []
 
 ### IDW Testing
 
-for idx, row in univkrig_combos.iterrows():
+for idx, row in ordkrig_combos.iterrows():
 
     run_start = time.time()
 
-    if row["SemiVar_model"] == "QuadDrift" and row["type"] == "variable":
-        kriging_model = f"QuadraticDrift {row['lag_dist']} # # #"
+    ##spherical semivariable fixed vs variable search radii
+    if row["SemiVar_model"] == "Spherical" and row["type"] == "variable":
+        kriging_model = f"Spherical {row['lag_dist']} # # #"
         search_radius = f"VARIABLE {row['num_points']}"
         out_name = (
-            f"QuV_lag{str(int(row['lag_dist']/1000))}km_np{str(int(row['num_points']))}"
+            f"SpV_lag{str(int(row['lag_dist']/1000))}km_np{str(int(row['num_points']))}"
         )
+    elif row["SemiVar_model"] == "Spherical" and row["type"] == "fixed":
+        kriging_model = f"Spherical {row['lag_dist']} # # #"
+        search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
+        out_name = f"SpF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
 
-    elif row["SemiVar_model"] == "LinearDrift" and row["type"] == "variable":
-        kriging_model = f"LinearDrift {row['lag_dist']} # # #"
+    ##Circular semivariograms fixed vs variable search radii
+    elif row["SemiVar_model"] == "Circular" and row["type"] == "variable":
+        kriging_model = f"Circular {row['lag_dist']} # # #"
+        search_radius = f"VARIABLE {row['num_points']}"
+        out_name = f"CirV_lag{str(int(row['lag_dist']/1000))}km_np{str(int(row['num_points']))}"
+    elif row["SemiVar_model"] == "Circular" and row["type"] == "fixed":
+        kriging_model = f"Circular {row['lag_dist']} # # #"
+        search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
+        out_name = f"CirF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
+
+    ##Exponential semivariograms fixed vs variable search radii
+    elif row["SemiVar_model"] == "Exponential" and row["type"] == "variable":
+        kriging_model = f"Exponential {row['lag_dist']} # # #"
+        search_radius = f"VARIABLE {row['num_points']}"
+        out_name = (
+            f"ExV_lag{str(int(row['lag_dist']/1000))}km_np{str(int(row['num_points']))}"
+        )
+    elif row["SemiVar_model"] == "Exponential" and row["type"] == "fixed":
+        kriging_model = f"Exponential {row['lag_dist']} # # #"
+        search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
+        out_name = f"ExF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
+
+    ##Gaussian semivariograms fixed vs variable search radii
+    elif row["SemiVar_model"] == "Gaussian" and row["type"] == "variable":
+        kriging_model = f"Gaussian {row['lag_dist']} # # #"
+        search_radius = f"VARIABLE {row['num_points']}"
+        out_name = (
+            f"GaV_lag{str(int(row['lag_dist']/1000))}km_np{str(int(row['num_points']))}"
+        )
+    elif row["SemiVar_model"] == "Gaussian" and row["type"] == "fixed":
+        kriging_model = f"Gaussian {row['lag_dist']} # # #"
+        search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
+        out_name = f"GaF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
+
+    ##Linear semivariograms fixed vs variable search radii
+    elif row["SemiVar_model"] == "Linear" and row["type"] == "variable":
+        kriging_model = f"Linear {row['lag_dist']} # # #"
         search_radius = f"VARIABLE {row['num_points']}"
         out_name = (
             f"LnV_lag{str(int(row['lag_dist']/1000))}km_np{str(int(row['num_points']))}"
         )
-
-    elif row["SemiVar_model"] == "QuadDrift" and row["type"] == "fixed":
-        kriging_model = f"QuadraticDrift {row['lag_dist']} # # #"
-        search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
-        out_name = f"QuF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
-
-    elif row["SemiVar_model"] == "LinearDrift" and row["type"] == "fixed":
-        kriging_model = f"LinearDrift {row['lag_dist']} # # #"
+    elif row["SemiVar_model"] == "Linear" and row["type"] == "fixed":
+        kriging_model = f"Linear {row['lag_dist']} # # #"
         search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
         out_name = f"LnF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
-
     else:
         print(f"Error: could not find parameters that matched criteria in row {idx}")
         break
 
-    out_var_raster = os.path.join(univkrig_gdb, f"{out_name}_pdrs")
+    out_var_raster = os.path.join(ordkrig_gdb, f"{out_name}_pdrs")
 
-    # run IDW
-    out_ras = arcpy.sa.Kriging(
-        in_point_features=train_pts,
-        z_field=z_field,
-        kriging_model=kriging_model,
-        cell_size=cell_size,
-        search_radius=search_radius,
-        out_variance_prediction_raster=out_var_raster,
-    )
+    # run kriging
+    try:
+        out_ras = arcpy.sa.Kriging(
+            in_point_features=train_pts,
+            z_field=z_field,
+            kriging_model=kriging_model,
+            search_radius=search_radius,
+            out_variance_prediction_raster=out_var_raster,
+        )
+    except arcpy.ExecuteError:
+        print(f"Run failed: {out_name}")
+        continue
 
-    raster_path = os.path.join(univkrig_gdb, out_name)
+    raster_path = os.path.join(ordkrig_gdb, out_name)
     out_ras.save(raster_path)
 
     results.append(
@@ -147,7 +202,7 @@ for idx, row in univkrig_combos.iterrows():
     )
 
 total_dur = time.time() - script_start
-print(f"\nAll {len(univkrig_combos)} runs completed in {total_dur/60:.2f} minutes")
+print(f"\nAll {len(ordkrig_combos)} runs completed in {total_dur/60:.2f} minutes")
 
 ## creating a table from the results
 
@@ -167,7 +222,7 @@ df_runs = pd.DataFrame(
 
 ##SAVE AS A CSV !!! SO YOU DON'T NEED TO RUN EVERYTHING AGAIN + WAIT 20 MIN
 df_runs.to_csv(
-    "C:/Duke/Year 2/MP/Interpolation_testing/UnivKrig/UnivKrig_raster_paths.csv", ","
+    "C:/Duke/Year 2/MP/Interpolation_testing/OrdKrig/OrdKrig_raster_paths.csv", ","
 )
 
 
@@ -222,10 +277,10 @@ for idx, row in df_runs.iterrows():
     rmse = np.sqrt(sum(((np.array(obs) - np.array(preds)) ** 2)) / len(obs))
     mae = np.mean(np.abs(np.array(obs) - np.array(preds)))
 
-    print(f"{rmse} {raster_path}")
+    print(f"{rmse} {raster}")
     rmse_list.append(rmse)
 
-    print(f"{mae} {raster_path}")
+    print(f"{mae} {raster}")
     mae_list.append(mae)
 
 df_runs["RMSE"] = rmse_list
@@ -246,11 +301,8 @@ df_runs_sorted = df_runs_sort.sort_values("Ave_Rank").reset_index(drop=True)
 
 # save to csv
 df_runs_sorted.to_csv(
-    "C:/Duke/Year 2/MP/Interpolation_testing/UnivKrig/UnivKrig_AveRank_Sort.csv", ","
+    "C:/Duke/Year 2/MP/Interpolation_testing/OrdKrig/OrdKrig_AveRank_Sort.csv", ","
 )
 
-best_raster = df_runs_sorted.iloc[0]
 
-print(
-    f"The IDW raster with the lowest RMSE is a {best_raster.iloc[1]}-search radius interpolation with the parameters of {best_raster.iloc[2]} power, a {best_raster.iloc[4]}m search distance, and requires a minumum of {best_raster.iloc[5]} points"
-)
+print(f"Iterations ran and saved, see final df for the highest average ranking raster")
