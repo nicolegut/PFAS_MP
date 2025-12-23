@@ -21,14 +21,19 @@ univkrig_folder = os.path.join(basepath, r"Interpolation_testing\UnivKrig")
 train_pts = os.path.join(testing_gdb, "PFOA_GW_training")
 test_pts = os.path.join(testing_gdb, "PFOA_GW_testing")
 us_mask = os.path.join(fgdb, "ContigUS_Mask")
+us_snap_ras = os.path.join(fgdb, "ContigUS_Raster")
 
 arcpy.env.overwriteOutput = True
 arcpy.env.mask = us_mask
 arcpy.env.extent = us_mask
+arcpy.env.snapRaster = us_snap_ras
+arcpy.env.cellSize = us_snap_ras
+
+print(f"loaded all paths/ set environments")
 
 # field interpolating
 z_field = "MeanValue"
-cell_size = 8046.7  # 5 miles in meters - previously used 10 miles, trying this out?
+cell_size = 8046.7  # back to 10 mi in meters - bc semivariograms were struggling with smaller cell size
 
 
 #### variable search radius - RadiusVariable ({numberofPoints}, {maxDistance})
@@ -45,6 +50,7 @@ f_pts = [6, 12, 24, 50]
 
 lag_dist = [8046.7, 16093.4, 24140.1]
 
+print(f"set parameter values")
 
 # creating a table of variable radius combinations
 var_combos = list(itertools.product(var_rad_pts, lag_dist))
@@ -72,6 +78,8 @@ quaddrift_df["SemiVar_model"] = "QuadDrift"
 
 # pd.concat([df_fix, df_var], axis=0, ignore_index=True)
 univkrig_combos = pd.concat([lindrift_df, quaddrift_df], axis=0, ignore_index=True)
+
+print(f"Created the combinations table.. starting script now")
 
 # time stamps for how long each iteration/ whole loop takes to run
 script_start = time.time()
