@@ -128,6 +128,11 @@ for idx, row in ordkrig_combos.iterrows():
         out_name = f"CirF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
 
     ##Exponential semivariograms fixed vs variable search radii
+    ## skipping the 24k lag dist bc arc crashes --> will need to look into why
+    elif row["SemiVar_model"] == "Exponential" and row["lag_dist"] > 17000:
+        print(f"Skipping row in Exponential bc of long lag dist")
+        continue
+
     elif row["SemiVar_model"] == "Exponential" and row["type"] == "variable":
         kriging_model = f"Exponential {row['lag_dist']} # # #"
         search_radius = f"VARIABLE {row['num_points']}"
@@ -140,6 +145,11 @@ for idx, row in ordkrig_combos.iterrows():
         out_name = f"ExF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
 
     ##Gaussian semivariograms fixed vs variable search radii
+    ## skipping the 24k lag dist bc arc crashes --> will need to look into why
+    elif row["SemiVar_model"] == "Gaussian" and row["lag_dist"] > 17000:
+        print(f"Skipping row in Gaussian bc of long lag dist")
+        continue
+
     elif row["SemiVar_model"] == "Gaussian" and row["type"] == "variable":
         kriging_model = f"Gaussian {row['lag_dist']} # # #"
         search_radius = f"VARIABLE {row['num_points']}"
