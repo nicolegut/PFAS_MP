@@ -50,7 +50,7 @@ f_pts = [6, 12, 24, 50]
 # had to remove 2 points/ test 50 bc 2 did not fill the map
 
 lag_dist = [8000, 16000, 20000, 24000, "#"]
-lag_name = ["8", "16", "20", "24", "#"]
+lag_name = ["8", "16", "20", "24", "Arc"]
 
 print(f"set parameter values")
 
