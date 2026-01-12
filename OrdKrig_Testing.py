@@ -6,6 +6,7 @@ import arcpy, os, time
 from datetime import datetime
 import itertools
 import numpy as np
+from itertools import cycle
 
 
 # setting up paths
@@ -14,7 +15,7 @@ fgdb = os.path.join(basepath, "PFAS_MP.gdb")
 contig_gdb = os.path.join(fgdb, "Exp_Int_pts")
 testing_gdb = os.path.join(fgdb, "Testing_Pts")
 # change this one for different interpolations
-ordkrig_gdb = os.path.join(basepath, "OrdKrig_Tests.gdb")
+ordkrig_gdb = os.path.join(basepath, "OrdKrig_Tests2.gdb")
 ordkrig_folder = os.path.join(basepath, r"Interpolation_testing\OrdKrig")
 
 # paths to points for subsetting
@@ -48,7 +49,8 @@ f_dist = [16000, 40250, 80500, 161000]
 f_pts = [6, 12, 24, 50]
 # had to remove 2 points/ test 50 bc 2 did not fill the map
 
-lag_dist = [8046.7, 16093.4, 24140.1]
+lag_dist = [8000, 16000, 20000, 24000, "#"]
+lag_name = ["8", "16", "20", "24", "#"]
 
 print(f"set parameter values")
 
@@ -56,12 +58,15 @@ print(f"set parameter values")
 var_combos = list(itertools.product(var_rad_pts, lag_dist))
 
 df_var = pd.DataFrame(var_combos, columns=["num_points", "lag_dist"])
+names_iter = iter(lag_name)
+df_var["lag_name"] = df_var.index.map(dict(zip(df_var.index, cycle(names_iter))))
 df_var["type"] = "variable"
 
 # creating a table of fixed radius combinations
 fixed_combos = list(itertools.product(f_dist, f_pts, lag_dist))
-
 df_fix = pd.DataFrame(fixed_combos, columns=["rad_dist", "f_pts", "lag_dist"])
+names_iter = iter(lag_name)
+df_fix["lag_name"] = df_fix.index.map(dict(zip(df_fix.index, cycle(names_iter))))
 df_fix["type"] = "fixed"
 
 
@@ -109,69 +114,89 @@ for idx, row in ordkrig_combos.iterrows():
     if row["SemiVar_model"] == "Spherical" and row["type"] == "variable":
         kriging_model = f"Spherical {row['lag_dist']} # # #"
         search_radius = f"VARIABLE {row['num_points']}"
-        out_name = (
-            f"SpV_lag{str(int(row['lag_dist']/1000))}km_np{str(int(row['num_points']))}"
-        )
+        out_name = f"SpV_lag{row['lag_name']}km_np{str(int(row['num_points']))}"
     elif row["SemiVar_model"] == "Spherical" and row["type"] == "fixed":
         kriging_model = f"Spherical {row['lag_dist']} # # #"
         search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
-        out_name = f"SpF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
+        out_name = f"SpF_lag{row['lag_name']}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
 
     ##Circular semivariograms fixed vs variable search radii
     elif row["SemiVar_model"] == "Circular" and row["type"] == "variable":
         kriging_model = f"Circular {row['lag_dist']} # # #"
         search_radius = f"VARIABLE {row['num_points']}"
-        out_name = f"CirV_lag{str(int(row['lag_dist']/1000))}km_np{str(int(row['num_points']))}"
+        out_name = f"CirV_lag{row['lag_name']}km_np{str(int(row['num_points']))}"
     elif row["SemiVar_model"] == "Circular" and row["type"] == "fixed":
         kriging_model = f"Circular {row['lag_dist']} # # #"
         search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
-        out_name = f"CirF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
+        out_name = f"CirF_lag{row['lag_name']}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
 
     ##Exponential semivariograms fixed vs variable search radii
     ## skipping the 24k lag dist bc arc crashes --> will need to look into why
-    elif row["SemiVar_model"] == "Exponential" and row["lag_dist"] > 17000:
+    ##adding in the new arc auto
+    elif row["SemiVar_model"] == "Exponential" and row["lag_dist"] == "#":
+        print("Using ArcGIS default lag distance for Exponential")
+        kriging_model = "Exponential # # # #"
+
+        if row["type"] == "variable":
+            kriging_model = f"Exponential # # # #"
+            search_radius = f"VARIABLE {row['num_points']}"
+            out_name = f"ExV_lag{row['lag_name']}km_np{str(int(row['num_points']))}"
+
+        elif row["type"] == "fixed":
+            kriging_model = f"Exponential # # # #"
+            search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
+            out_name = f"ExF_lag{row['lag_name']}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
+
+    elif row["SemiVar_model"] == "Exponential" and row["lag_dist"] > 18000:
         print(f"Skipping row in Exponential bc of long lag dist")
         continue
 
     elif row["SemiVar_model"] == "Exponential" and row["type"] == "variable":
         kriging_model = f"Exponential {row['lag_dist']} # # #"
         search_radius = f"VARIABLE {row['num_points']}"
-        out_name = (
-            f"ExV_lag{str(int(row['lag_dist']/1000))}km_np{str(int(row['num_points']))}"
-        )
+        out_name = f"ExV_lag{row['lag_name']}km_np{str(int(row['num_points']))}"
     elif row["SemiVar_model"] == "Exponential" and row["type"] == "fixed":
         kriging_model = f"Exponential {row['lag_dist']} # # #"
         search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
-        out_name = f"ExF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
+        out_name = f"ExF_lag{row['lag_name']}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
 
     ##Gaussian semivariograms fixed vs variable search radii
     ## skipping the 24k lag dist bc arc crashes --> will need to look into why
-    elif row["SemiVar_model"] == "Gaussian" and row["lag_dist"] > 17000:
+    elif row["SemiVar_model"] == "Gaussian" and row["lag_dist"] == "#":
+        print("Using ArcGIS default lag distance for Gaussian")
+
+        if row["type"] == "variable":
+            kriging_model = f"Gaussian # # # #"
+            search_radius = f"VARIABLE {row['num_points']}"
+            out_name = f"GaV_lag{row['lag_name']}km_np{str(int(row['num_points']))}"
+
+        elif row["type"] == "fixed":
+            kriging_model = f"Gaussian # # # #"
+            search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
+            out_name = f"GaF_lag{row['lag_name']}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
+
+    elif row["SemiVar_model"] == "Gaussian" and row["lag_dist"] > 18000:
         print(f"Skipping row in Gaussian bc of long lag dist")
         continue
 
     elif row["SemiVar_model"] == "Gaussian" and row["type"] == "variable":
         kriging_model = f"Gaussian {row['lag_dist']} # # #"
         search_radius = f"VARIABLE {row['num_points']}"
-        out_name = (
-            f"GaV_lag{str(int(row['lag_dist']/1000))}km_np{str(int(row['num_points']))}"
-        )
+        out_name = f"GaV_lag{row['lag_name']}km_np{str(int(row['num_points']))}"
     elif row["SemiVar_model"] == "Gaussian" and row["type"] == "fixed":
         kriging_model = f"Gaussian {row['lag_dist']} # # #"
         search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
-        out_name = f"GaF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
+        out_name = f"GaF_lag{row['lag_name']}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
 
     ##Linear semivariograms fixed vs variable search radii
     elif row["SemiVar_model"] == "Linear" and row["type"] == "variable":
         kriging_model = f"Linear {row['lag_dist']} # # #"
         search_radius = f"VARIABLE {row['num_points']}"
-        out_name = (
-            f"LnV_lag{str(int(row['lag_dist']/1000))}km_np{str(int(row['num_points']))}"
-        )
+        out_name = f"LnV_lag{row['lag_name']}km_np{str(int(row['num_points']))}"
     elif row["SemiVar_model"] == "Linear" and row["type"] == "fixed":
         kriging_model = f"Linear {row['lag_dist']} # # #"
         search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
-        out_name = f"LnF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
+        out_name = f"LnF_lag{row['lag_name']}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
     else:
         print(f"Error: could not find parameters that matched criteria in row {idx}")
         break
@@ -232,7 +257,7 @@ df_runs = pd.DataFrame(
 
 ##SAVE AS A CSV !!! SO YOU DON'T NEED TO RUN EVERYTHING AGAIN + WAIT 20 MIN
 df_runs.to_csv(
-    "C:/Duke/Year 2/MP/Interpolation_testing/OrdKrig/OrdKrig_raster_paths.csv", ","
+    "C:/Duke/Year 2/MP/Interpolation_testing/OrdKrig/OrdKrig_raster_paths2.csv", ","
 )
 
 
@@ -311,7 +336,7 @@ df_runs_sorted = df_runs_sort.sort_values("Ave_Rank").reset_index(drop=True)
 
 # save to csv
 df_runs_sorted.to_csv(
-    "C:/Duke/Year 2/MP/Interpolation_testing/OrdKrig/OrdKrig_AveRank_Sort.csv", ","
+    "C:/Duke/Year 2/MP/Interpolation_testing/OrdKrig/OrdKrig_AveRank_Sort2.csv", ","
 )
 
 
