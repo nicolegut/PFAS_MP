@@ -6,6 +6,7 @@ import arcpy, os, time
 from datetime import datetime
 import itertools
 import numpy as np
+from itertools import cycle
 
 
 # setting up paths
@@ -48,20 +49,26 @@ f_dist = [16000, 40250, 80500, 161000]
 f_pts = [6, 12, 24, 50]
 # had to remove 2 points/ test 50 bc 2 did not fill the map
 
-lag_dist = [8046.7, 16093.4, 24140.1]
+lag_dist = [8000, 16000, 20000, 24000, "#"]
+lag_name = ["8", "16", "20", "24", "Arc"]
 
 print(f"set parameter values")
+
 
 # creating a table of variable radius combinations
 var_combos = list(itertools.product(var_rad_pts, lag_dist))
 
+
 df_var = pd.DataFrame(var_combos, columns=["num_points", "lag_dist"])
+names_iter = iter(lag_name)
+df_var["lag_name"] = df_var.index.map(dict(zip(df_var.index, cycle(names_iter))))
 df_var["type"] = "variable"
 
 # creating a table of fixed radius combinations
 fixed_combos = list(itertools.product(f_dist, f_pts, lag_dist))
-
 df_fix = pd.DataFrame(fixed_combos, columns=["rad_dist", "f_pts", "lag_dist"])
+names_iter = iter(lag_name)
+df_fix["lag_name"] = df_fix.index.map(dict(zip(df_fix.index, cycle(names_iter))))
 df_fix["type"] = "fixed"
 
 
@@ -97,26 +104,22 @@ for idx, row in univkrig_combos.iterrows():
     if row["SemiVar_model"] == "QuadDrift" and row["type"] == "variable":
         kriging_model = f"QuadraticDrift {row['lag_dist']} # # #"
         search_radius = f"VARIABLE {row['num_points']}"
-        out_name = (
-            f"QuV_lag{str(int(row['lag_dist']/1000))}km_np{str(int(row['num_points']))}"
-        )
+        out_name = f"QuV_lag{row['lag_name']}km_np{str(int(row['num_points']))}"
 
     elif row["SemiVar_model"] == "LinearDrift" and row["type"] == "variable":
         kriging_model = f"LinearDrift {row['lag_dist']} # # #"
         search_radius = f"VARIABLE {row['num_points']}"
-        out_name = (
-            f"LnV_lag{str(int(row['lag_dist']/1000))}km_np{str(int(row['num_points']))}"
-        )
+        out_name = f"LnV_lag{row['lag_name']}km_np{str(int(row['num_points']))}"
 
     elif row["SemiVar_model"] == "QuadDrift" and row["type"] == "fixed":
         kriging_model = f"QuadraticDrift {row['lag_dist']} # # #"
         search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
-        out_name = f"QuF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
+        out_name = f"QuF_lag{row['lag_name']}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
 
     elif row["SemiVar_model"] == "LinearDrift" and row["type"] == "fixed":
         kriging_model = f"LinearDrift {row['lag_dist']} # # #"
         search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
-        out_name = f"LnF_lag{str(int(row['lag_dist']/1000))}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
+        out_name = f"LnF_lag{row['lag_name']}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
 
     else:
         print(f"Error: could not find parameters that matched criteria in row {idx}")
@@ -175,7 +178,7 @@ df_runs = pd.DataFrame(
 
 ##SAVE AS A CSV !!! SO YOU DON'T NEED TO RUN EVERYTHING AGAIN + WAIT 20 MIN
 df_runs.to_csv(
-    "C:/Duke/Year 2/MP/Interpolation_testing/UnivKrig/UnivKrig_raster_paths.csv", ","
+    "C:/Duke/Year 2/MP/Interpolation_testing/UnivKrig/UnivKrig_raster_paths2.csv", ","
 )
 
 
@@ -254,11 +257,8 @@ df_runs_sorted = df_runs_sort.sort_values("Ave_Rank").reset_index(drop=True)
 
 # save to csv
 df_runs_sorted.to_csv(
-    "C:/Duke/Year 2/MP/Interpolation_testing/UnivKrig/UnivKrig_AveRank_Sort.csv", ","
+    "C:/Duke/Year 2/MP/Interpolation_testing/UnivKrig/UnivKrig_AveRank_Sort2.csv", ","
 )
 
-best_raster = df_runs_sorted.iloc[0]
 
-print(
-    f"The IDW raster with the lowest RMSE is a {best_raster.iloc[1]}-search radius interpolation with the parameters of {best_raster.iloc[2]} power, a {best_raster.iloc[4]}m search distance, and requires a minumum of {best_raster.iloc[5]} points"
-)
+print(f"Iterations ran and saved, see final df for the highest average ranking raster")

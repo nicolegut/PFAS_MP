@@ -214,5 +214,5 @@ df_runs_sorted.to_csv(
 best_raster = df_runs_sorted.iloc[0]
 
 print(
-    f"The IDW raster with the lowest RMSE is a {best_raster.iloc[1]}-search radius interpolation with the parameters of {best_raster.iloc[2]} power, a {best_raster.iloc[4]}m search distance, and requires a minumum of {best_raster.iloc[5]} points"
+    f"The IDW raster with the lowest average RMSE and MAE ranks is a {best_raster.iloc[1]}-search radius interpolation with the parameters of {best_raster.iloc[2]} power, a {best_raster.iloc[4]}m search distance, and requires a minumum of {best_raster.iloc[5]} points"
 )
