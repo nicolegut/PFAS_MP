@@ -35,9 +35,6 @@ power_inp = [0.5, 1, 2, 3]
 var_rad_pts = [5, 12, 25, 50, 100]
 # will be using the default for max distance
 
-"""
-12/19 --- >RE RUN WITH THE 25 points added in
-"""
 
 #### fixed search radius - RadiusFixed ({distance}, {minNumberofPoints})
 f_dist = [16000, 40250, 80500, 161000]
@@ -130,7 +127,7 @@ df_runs = pd.DataFrame(
 )
 
 
-##SAVE AS A CSV !!! SO YOU DON'T NEED TO RUN EVERYTHING AGAIN + WAIT 20 MIN
+##SAVE AS A CSV ! !! SO YOU DON'T NEED TO RUN EVERYTHING AGAIN + WAIT 20 MIN
 # df_runs_sorted.to_csv("C:/Duke/Year 2/MP/Interpolation_testing/IDW/IDW_test_runs.csv",",")
 
 

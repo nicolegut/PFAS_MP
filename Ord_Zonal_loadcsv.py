@@ -22,6 +22,7 @@ ordkrig_folder = os.path.join(basepath, r"Interpolation_testing\OrdKrig")
 train_pts = os.path.join(testing_gdb, "PFOA_GW_training")
 test_pts = os.path.join(testing_gdb, "PFOA_GW_testing")
 test_bufs = os.path.join(testing_gdb, "PFOA_GW_test_10mibuf")
+test_bufs5mi = os.path.join(testing_gdb, "PFOA_GW_test_5mibuf")
 us_mask = os.path.join(fgdb, "ContigUS_Mask")
 us_snap_ras = os.path.join(fgdb, "ContigUS_Raster")
 OK_top30_pathscsv = os.path.join(ordkrig_folder, "Ord_top_30.csv")
@@ -88,7 +89,7 @@ for idx, row in df_runs.iterrows():
     ## evens out/ avoids potential sinks in raster when test points extracts values
     try:
         out_ras = arcpy.sa.ZonalStatisticsAsTable(
-            in_zone_data=test_bufs,
+            in_zone_data=test_bufs5mi,
             zone_field="CWS_Points_PWSID",
             in_value_raster=raster,
             out_table=ord_zonal_table,
@@ -142,7 +143,7 @@ df_runs_sorted = df_runs_sort.sort_values("Ave_Rank").reset_index(drop=True)
 
 # save to csv
 df_runs_sorted.to_csv(
-    "C:/Duke/Year 2/MP/Interpolation_testing/OrdKrig/OrdKrig_RasterTests_Rank_v2.csv",
+    "C:/Duke/Year 2/MP/Interpolation_testing/OrdKrig/OrdKrig_RasterTests_Rank_v3.csv",
     ",",
 )
 

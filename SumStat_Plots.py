@@ -13,7 +13,7 @@ import seaborn as sns
 # current workspace: 'c:/Duke/Year 2/MP/Scripts/PFAS_MP'
 # new workspace: 'c:/Duke/Year 2/MP'
 # wd_path = Path.cwd().parents[1]
-# os.chdir(wd_path)
+# .chdir(wd_path)
 
 # reading in the RMSE/ MAE data
 # subsetting the data
