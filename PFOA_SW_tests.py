@@ -87,7 +87,7 @@ for idx, row in IDW_params.iterrows():
         out_name = out_name
 
     else:
-        search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
+        search_radius = f"FIXED {row['distance']} {row['f_pts']}"
         out_name = out_name
 
     # run IDW
@@ -109,7 +109,7 @@ for idx, row in IDW_params.iterrows():
             row["type"],
             row["power"],
             row.get("num_points"),
-            row.get("rad_dist"),
+            row.get("distance"),
             row.get("f_pts"),
         ]
     )
@@ -277,13 +277,13 @@ for idx, row in UK_params.iterrows():
 
     elif row["SemiVar_model"] == "QuadDrift" and row["type"] == "fixed":
         kriging_model = f"QuadraticDrift {row['lag_dist']} # # #"
-        search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
-        out_name = f"QuF_lag{row['lag_name']}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
+        search_radius = f"FIXED {row['distance']} {row['f_pts']}"
+        out_name = f"QuF_lag{row['lag_name']}km_d{str(int(row['distance']/1000))}km_np{str(int(row['f_pts']))}"
 
     elif row["SemiVar_model"] == "LinearDrift" and row["type"] == "fixed":
         kriging_model = f"LinearDrift {row['lag_dist']} # # #"
-        search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
-        out_name = f"LnF_lag{row['lag_name']}km_d{str(int(row['rad_dist']/1000))}km_np{str(int(row['f_pts']))}"
+        search_radius = f"FIXED {row['distance']} {row['f_pts']}"
+        out_name = f"LnF_lag{row['lag_name']}km_d{str(int(row['distance']/1000))}km_np{str(int(row['f_pts']))}"
 
     else:
         print(f"Error: could not find parameters that matched criteria in row {idx}")
@@ -312,7 +312,7 @@ for idx, row in UK_params.iterrows():
             row["type"],
             row["lag_dist"],
             row.get("num_points"),
-            row.get("rad_dist"),
+            row.get("distance"),
             row.get("f_pts"),
         ]
     )
@@ -483,7 +483,7 @@ for idx, row in OK_params.iterrows():
         out_name = out_name
     elif row["SemiVar_model"] == "Spherical" and row["type"] == "fixed":
         kriging_model = f"Spherical {row['lag_dist']} # # #"
-        search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
+        search_radius = f"FIXED {row['distance']} {row['f_pts']}"
         out_name = out_name
 
     ##Circular semivariograms fixed vs variable search radii
@@ -493,7 +493,7 @@ for idx, row in OK_params.iterrows():
         out_name = out_name
     elif row["SemiVar_model"] == "Circular" and row["type"] == "fixed":
         kriging_model = f"Circular {row['lag_dist']} # # #"
-        search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
+        search_radius = f"FIXED {row['distance']} {row['f_pts']}"
         out_name = out_name
 
     ##Exponential semivariograms fixed vs variable search radii
@@ -510,7 +510,7 @@ for idx, row in OK_params.iterrows():
 
         elif row["type"] == "fixed":
             kriging_model = f"Exponential # # # #"
-            search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
+            search_radius = f"FIXED {row['distance']} {row['f_pts']}"
             out_name = out_name
 
     elif row["SemiVar_model"] == "Exponential" and row["lag_dist"] > 18000:
@@ -523,7 +523,7 @@ for idx, row in OK_params.iterrows():
         out_name = out_name
     elif row["SemiVar_model"] == "Exponential" and row["type"] == "fixed":
         kriging_model = f"Exponential {row['lag_dist']} # # #"
-        search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
+        search_radius = f"FIXED {row['distance']} {row['f_pts']}"
         out_name = out_name
 
     ##Gaussian semivariograms fixed vs variable search radii
@@ -538,7 +538,7 @@ for idx, row in OK_params.iterrows():
 
         elif row["type"] == "fixed":
             kriging_model = f"Gaussian # # # #"
-            search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
+            search_radius = f"FIXED {row['distance']} {row['f_pts']}"
             out_name = out_name
 
     elif row["SemiVar_model"] == "Gaussian" and row["lag_dist"] > 18000:
@@ -551,7 +551,7 @@ for idx, row in OK_params.iterrows():
         out_name = out_name
     elif row["SemiVar_model"] == "Gaussian" and row["type"] == "fixed":
         kriging_model = f"Gaussian {row['lag_dist']} # # #"
-        search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
+        search_radius = f"FIXED {row['distance']} {row['f_pts']}"
         out_name = out_name
 
     ##Linear semivariograms fixed vs variable search radii
@@ -561,7 +561,7 @@ for idx, row in OK_params.iterrows():
         out_name = out_name
     elif row["SemiVar_model"] == "Linear" and row["type"] == "fixed":
         kriging_model = f"Linear {row['lag_dist']} # # #"
-        search_radius = f"FIXED {row['rad_dist']} {row['f_pts']}"
+        search_radius = f"FIXED {row['distance']} {row['f_pts']}"
         out_name = out_name
     else:
         print(f"Error: could not find parameters that matched criteria in row {idx}")
@@ -593,7 +593,7 @@ for idx, row in OK_params.iterrows():
             row["type"],
             row["lag_dist"],
             row.get("num_points"),
-            row.get("rad_dist"),
+            row.get("distance"),
             row.get("f_pts"),
         ]
     )
