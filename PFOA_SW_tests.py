@@ -29,10 +29,11 @@ SW_PFOS_OK = os.path.join(PFOS_SW_folder, "PFOS_SW_75OK.csv")
 SW_PFOS_UK = os.path.join(PFOS_SW_folder, "PFOS_SW_75UK.csv")
 
 arcpy.env.overwriteOutput = True
-# arcpy.env.mask = us_mask
-# arcpy.env.extent = us_mask
-# arcpy.env.snapRaster = us_snap_ras
+arcpy.env.mask = us_mask
+arcpy.env.extent = us_mask
+arcpy.env.snapRaster = us_snap_ras
 arcpy.env.cellSize = us_snap_ras
+# cell size is 5 mi in meters (8046.7m)
 
 print(f"set environments/ loading csv for surface water")
 
@@ -56,7 +57,6 @@ UK_params.drop(columns="raster", inplace=True)
 
 # field interpolating
 z_field = "MeanValue"
-cell_size = 8046.7  # back to 10 mi in meters - bc semivariograms were struggling with smaller cell size
 
 overall_script_start = time.time()
 
@@ -94,7 +94,6 @@ for idx, row in IDW_params.iterrows():
     out_ras = arcpy.sa.Idw(
         in_point_features=train_pts,
         z_field=z_field,
-        cell_size=cell_size,
         power=row["power"],
         search_radius=search_radius,
     )
@@ -296,7 +295,6 @@ for idx, row in UK_params.iterrows():
         in_point_features=train_pts,
         z_field=z_field,
         kriging_model=kriging_model,
-        cell_size=cell_size,
         search_radius=search_radius,
         out_variance_prediction_raster=out_var_raster,
     )
@@ -513,7 +511,7 @@ for idx, row in OK_params.iterrows():
             search_radius = f"FIXED {row['distance']} {row['f_pts']}"
             out_name = out_name
 
-    elif row["SemiVar_model"] == "Exponential" and row["lag_dist"] > 18000:
+    elif row["SemiVar_model"] == "Exponential" and row["lag_dist"] == "24000":
         print(f"Skipping row in Exponential bc of long lag dist")
         continue
 
@@ -541,7 +539,7 @@ for idx, row in OK_params.iterrows():
             search_radius = f"FIXED {row['distance']} {row['f_pts']}"
             out_name = out_name
 
-    elif row["SemiVar_model"] == "Gaussian" and row["lag_dist"] > 18000:
+    elif row["SemiVar_model"] == "Gaussian" and row["lag_dist"] == "24000":
         print(f"Skipping row in Gaussian bc of long lag dist")
         continue
 
