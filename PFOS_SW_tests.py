@@ -13,19 +13,17 @@ fgdb = os.path.join(basepath, "PFAS_MP.gdb")
 contig_gdb = os.path.join(fgdb, "Exp_Int_pts")
 testing_gdb = os.path.join(fgdb, "Testing_Pts")
 # change this one for different interpolations
-PFOA_SW_gdb = os.path.join(basepath, "PFOA_SW_Tests.gdb")
+PFOS_SW_gdb = os.path.join(basepath, "PFOS_SW_Tests.gdb")
 PFOS_SW_folder = os.path.join(basepath, r"Interpolation_testing\PFOS_SW")
-PFOA_SW_folder = os.path.join(basepath, r"Interpolation_testing\PFOA_SW")
 
 
 # paths to points for subsetting
-train_pts = os.path.join(testing_gdb, "PFOA_SW_training")
-test_pts = os.path.join(testing_gdb, "PFOA_SW_testing")
-test_bufs5mi = os.path.join(testing_gdb, "PFOA_SW_test_5mibuf")
+train_pts = os.path.join(testing_gdb, "PFOS_SW_training")
+test_pts = os.path.join(testing_gdb, "PFOS_SW_testing")
+test_bufs = os.path.join(testing_gdb, "PFOS_SW_test_10mibuf")
+test_bufs5mi = os.path.join(testing_gdb, "PFOS_SW_test_5mibuf")
 us_mask = os.path.join(fgdb, "ContigUS_Mask")
 us_snap_ras = os.path.join(fgdb, "ContigUS_Raster")
-
-# top 75 rasters from the
 SW_PFOS_IDW = os.path.join(PFOS_SW_folder, "PFOS_SW_75IDW.csv")
 SW_PFOS_OK = os.path.join(PFOS_SW_folder, "PFOS_SW_75OK.csv")
 SW_PFOS_UK = os.path.join(PFOS_SW_folder, "PFOS_SW_75UK.csv")
@@ -100,7 +98,7 @@ for idx, row in IDW_params.iterrows():
         search_radius=search_radius,
     )
 
-    raster_path = os.path.join(PFOA_SW_gdb, out_name)
+    raster_path = os.path.join(PFOS_SW_gdb, out_name)
     out_ras.save(raster_path)
 
     IDW_results.append(
@@ -134,7 +132,7 @@ IDW_runs = pd.DataFrame(
 )
 
 IDW_runs.to_csv(
-    "C:/Duke/Year 2/MP/Interpolation_testing/PFOA_SW/IDW_t75Raster_Paths.csv", ","
+    "C:/Duke/Year 2/MP/Interpolation_testing/PFOS_SW/IDW_t75Raster_Paths.csv", ","
 )
 
 
@@ -143,8 +141,6 @@ IDW_runs.to_csv(
 IDW Testing - Calculating Stats
 """
 ########################################################################################
-
-print("calculating stats for IDW")
 
 
 ## setting up defs for analysis
@@ -242,7 +238,7 @@ IDW_runs_sorted = IDW_runs_sort.sort_values("Ave_Rank").reset_index(drop=True)
 
 # save to csv
 IDW_runs_sorted.to_csv(
-    "C:/Duke/Year 2/MP/Interpolation_testing/PFOA_SW/IDW_RankSorted.csv",
+    "C:/Duke/Year 2/MP/Interpolation_testing/PFOS_SW/IDW_RankSorted.csv",
     ",",
 )
 
@@ -257,8 +253,6 @@ print(
 Univ Krig Testing - Generating Rasters
 """
 ########################################################################################
-
-print("starting raster generation for universal kriging")
 
 UK_results = []
 UK_timing = []
@@ -295,7 +289,7 @@ for idx, row in UK_params.iterrows():
         print(f"Error: could not find parameters that matched criteria in row {idx}")
         break
 
-    out_var_raster = os.path.join(PFOA_SW_gdb, f"{out_name}_pdrs")
+    out_var_raster = os.path.join(PFOS_SW_gdb, f"{out_name}_pdrs")
 
     # run IDW
     out_ras = arcpy.sa.Kriging(
@@ -306,7 +300,7 @@ for idx, row in UK_params.iterrows():
         out_variance_prediction_raster=out_var_raster,
     )
 
-    raster_path = os.path.join(PFOA_SW_gdb, out_name)
+    raster_path = os.path.join(PFOS_SW_gdb, out_name)
     out_ras.save(raster_path)
 
     UK_results.append(
@@ -353,7 +347,7 @@ UK_runs = pd.DataFrame(
 
 ##SAVE AS A CSV !!! SO YOU DON'T NEED TO RUN EVERYTHING AGAIN + WAIT 20 MIN
 UK_runs.to_csv(
-    "C:/Duke/Year 2/MP/Interpolation_testing/PFOA_SW/UK_t75Raster_Paths.csv", ","
+    "C:/Duke/Year 2/MP/Interpolation_testing/PFOS_SW/UK_t75Raster_Paths.csv", ","
 )
 
 
@@ -364,7 +358,6 @@ Universal Kriging Testing - Calculating Stats
 
 ########################################################################################
 
-print("starting stat calcs for universal kriging")
 
 mean_field = get_alias_not_field_name(test_pts, "MeanValue")
 test_arr = arcpy.da.TableToNumPyArray(
@@ -453,7 +446,7 @@ UK_runs_sorted = UK_runs_sort.sort_values("Ave_Rank").reset_index(drop=True)
 
 # save to csv
 UK_runs_sorted.to_csv(
-    "C:/Duke/Year 2/MP/Interpolation_testing/PFOA_SW/UK_RankSorted.csv",
+    "C:/Duke/Year 2/MP/Interpolation_testing/PFOS_SW/UK_RankSorted.csv",
     ",",
 )
 
@@ -465,11 +458,10 @@ print(
 
 ########################################################################################
 """
-Ordinary Krig Testing - Generating Rasters
+Univ Krig Testing - Generating Rasters
 """
 ########################################################################################
 
-print("starting Ordinary Kriging raster generation")
 
 OK_start = time.time()
 
@@ -575,7 +567,7 @@ for idx, row in OK_params.iterrows():
         print(f"Error: could not find parameters that matched criteria in row {idx}")
         break
 
-    out_var_raster = os.path.join(PFOA_SW_gdb, f"{out_name}_pdrs")
+    out_var_raster = os.path.join(PFOS_SW_gdb, f"{out_name}_pdrs")
 
     # run kriging
     try:
@@ -591,7 +583,7 @@ for idx, row in OK_params.iterrows():
         print(arcpy.GetMessages(2))
         continue
 
-    raster_path = os.path.join(PFOA_SW_gdb, out_name)
+    raster_path = os.path.join(PFOS_SW_gdb, out_name)
     out_ras.save(raster_path)
 
     OK_results.append(
@@ -638,7 +630,7 @@ OK_runs = pd.DataFrame(
 
 ##SAVE AS A CSV !!! SO YOU DON'T NEED TO RUN EVERYTHING AGAIN + WAIT 20 MIN
 OK_runs.to_csv(
-    "C:/Duke/Year 2/MP/Interpolation_testing/PFOA_SW/OK_t75Raster_Paths.csv", ","
+    "C:/Duke/Year 2/MP/Interpolation_testing/PFOS_SW/OK_t75Raster_Paths.csv", ","
 )
 
 ########################################################################################
@@ -648,7 +640,6 @@ Ordinary Kriging Testing - Calculating Stats
 
 ########################################################################################
 
-print("starting ordinary kriging stat interpretation")
 
 mean_field = get_alias_not_field_name(test_pts, "MeanValue")
 test_arr = arcpy.da.TableToNumPyArray(
@@ -737,7 +728,7 @@ OK_runs_sorted = OK_runs_sort.sort_values("Ave_Rank").reset_index(drop=True)
 
 # save to csv
 OK_runs_sorted.to_csv(
-    "C:/Duke/Year 2/MP/Interpolation_testing/PFOA_SW/OK_RankSorted.csv",
+    "C:/Duke/Year 2/MP/Interpolation_testing/PFOS_SW/OK_RankSorted.csv",
     ",",
 )
 
