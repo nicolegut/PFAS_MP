@@ -1,5 +1,6 @@
 ## Distributions of Interpolation RMSE and MAE values
 
+
 # importing libraries
 import pandas as pd
 import numpy as np
@@ -7,6 +8,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import os
 import seaborn as sns
+from matplotlib.lines import Line2D
 
 # setting working directory
 # moving back 2 folders to access the MP folder
@@ -37,10 +39,19 @@ PFOS_GW_nouk = PFOS_GW_data.iloc[:, :-2]
 PFOA_GW_nouk = PFOA_GW_data.iloc[:, :-2]
 
 color_palette = sns.color_palette("Set2", 4)
+plt.rcParams.update(
+    {
+        "font.family": "Times New Roman",
+        "axes.titlesize": 20,
+        "axes.labelsize": 16,
+        "xtick.labelsize": 16,
+        "ytick.labelsize": 16,
+    }
+)
 
 
 def top_5(data):
-    top5 = data.iloc[0:5, :]
+    top5 = data.iloc[1:5, :]
     return top5
 
 
@@ -58,9 +69,9 @@ def long_method_stat_comp(data):
     return df_long
 
 
-def plot_interp_RMSE(df, df2, df3, title):
+def plot_interp_RMSE(df, df2, df3, title, top1_label, top5_label, top15_label):
 
-    sns.set(style="whitegrid", font_scale=1.3)
+    # sns.set(style="whitegrid", font_scale=1.3)
 
     plt.figure(figsize=(8, 6))
 
@@ -103,6 +114,38 @@ def plot_interp_RMSE(df, df2, df3, title):
         size=9,
     )
 
+    legend_elements = [
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            label=f"{top1_label}",
+            markerfacecolor="red",
+            markersize=8,
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            label=f"{top5_label}",
+            markerfacecolor="orange",
+            markersize=8,
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            label=f"{top15_label}",
+            markerfacecolor="black",
+            markersize=8,
+        ),
+    ]
+
+    plt.legend(handles=legend_elements)
+
     plt.ylabel("RMSE (ppt)")
     plt.xlabel("Test Method")
     plt.title(f"RMSE by Test Method: {title}")
@@ -110,9 +153,9 @@ def plot_interp_RMSE(df, df2, df3, title):
     return plt.show()
 
 
-def plot_interp_MAE(df, df2, df3, title):
+def plot_interp_MAE(df, df2, df3, title, top1_label, top5_label, top15_label):
 
-    sns.set(style="whitegrid", font_scale=1.3)
+    # sns.set(style="whitegrid", font_scale=1.3)
 
     plt.figure(figsize=(8, 6))
 
@@ -154,6 +197,38 @@ def plot_interp_MAE(df, df2, df3, title):
         size=9,
     )
 
+    legend_elements = [
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            label=f"{top1_label}",
+            markerfacecolor="red",
+            markersize=8,
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            label=f"{top5_label}",
+            markerfacecolor="orange",
+            markersize=8,
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            label=f"{top15_label}",
+            markerfacecolor="black",
+            markersize=8,
+        ),
+    ]
+
+    plt.legend(handles=legend_elements)
+
     plt.ylabel("MAE (ppt)")
     plt.xlabel("Test Method")
     plt.title(f"MAE by Test Method: {title}")
@@ -162,45 +237,109 @@ def plot_interp_MAE(df, df2, df3, title):
 
 
 ##PFOA GW RMSE/ MAE
-PFOA_GW5 = top_5(PFOA_GW_data)
-PFOA_GW1 = top_1(PFOA_GW_data)
-PFOA_GW_long = long_method_stat_comp(PFOA_GW_data)
+PFOA_GW5 = top_5(PFOA_GW_nouk)
+PFOA_GW1 = top_1(PFOA_GW_nouk)
+PFOA_GW_long = long_method_stat_comp(PFOA_GW_nouk)
 PFOA_GW5_long = long_method_stat_comp(PFOA_GW5)
 PFOA_GW1_long = long_method_stat_comp(PFOA_GW1)
 
-plot_interp_MAE(PFOA_GW_long, PFOA_GW5_long, PFOA_GW1_long, "PFOA GW")
-plot_interp_RMSE(PFOA_GW_long, PFOA_GW5_long, PFOA_GW1_long, "PFOA GW")
+plot_interp_MAE(
+    PFOA_GW_long,
+    PFOA_GW5_long,
+    PFOA_GW1_long,
+    "PFOA GW",
+    "Top Raster",
+    "Top 5 Rasters",
+    "Top 15 Rasters",
+)
+plot_interp_RMSE(
+    PFOA_GW_long,
+    PFOA_GW5_long,
+    PFOA_GW1_long,
+    "PFOA GW",
+    "Top Raster",
+    "Top 5 Rasters",
+    "Top 15 Rasters",
+)
 
 ##PFOA SW RMSE/ MAE
-PFOA_SW5 = top_5(PFOA_SW_data)
-PFOA_SW1 = top_1(PFOA_SW_data)
-PFOA_SW_long = long_method_stat_comp(PFOA_SW_data)
+PFOA_SW5 = top_5(PFOA_SW_nouk)
+PFOA_SW1 = top_1(PFOA_SW_nouk)
+PFOA_SW_long = long_method_stat_comp(PFOA_SW_nouk)
 PFOA_SW5_long = long_method_stat_comp(PFOA_SW5)
 PFOA_SW1_long = long_method_stat_comp(PFOA_SW1)
 
-plot_interp_MAE(PFOA_SW_long, PFOA_SW5_long, PFOA_SW1_long, "PFOA SW")
-plot_interp_RMSE(PFOA_SW_long, PFOA_SW5_long, PFOA_SW1_long, "PFOA SW")
+plot_interp_MAE(
+    PFOA_SW_long,
+    PFOA_SW5_long,
+    PFOA_SW1_long,
+    "PFOA SW",
+    "Top Raster",
+    "Top 5 Rasters",
+    "Top 15 Rasters",
+)
+plot_interp_RMSE(
+    PFOA_SW_long,
+    PFOA_SW5_long,
+    PFOA_SW1_long,
+    "PFOA SW",
+    "Top Raster",
+    "Top 5 Rasters",
+    "Top 15 Rasters",
+)
 
 
 ##PFOS SW RMSE/ MAE
-PFOS_SW5 = top_5(PFOS_SW_data)
-PFOS_SW1 = top_1(PFOS_SW_data)
-PFOS_SW_long = long_method_stat_comp(PFOS_SW_data)
+PFOS_SW5 = top_5(PFOS_SW_nouk)
+PFOS_SW1 = top_1(PFOS_SW_nouk)
+PFOS_SW_long = long_method_stat_comp(PFOS_SW_nouk)
 PFOS_SW5_long = long_method_stat_comp(PFOS_SW5)
 PFOS_SW1_long = long_method_stat_comp(PFOS_SW1)
 
-plot_interp_MAE(PFOS_SW_long, PFOS_SW5_long, PFOS_SW1_long, "PFOS SW")
-plot_interp_RMSE(PFOS_SW_long, PFOS_SW5_long, PFOS_SW1_long, "PFOS SW")
+plot_interp_MAE(
+    PFOS_SW_long,
+    PFOS_SW5_long,
+    PFOS_SW1_long,
+    "PFOS SW",
+    "Top Raster",
+    "Top 5 Rasters",
+    "Top 15 Rasters",
+)
+plot_interp_RMSE(
+    PFOS_SW_long,
+    PFOS_SW5_long,
+    PFOS_SW1_long,
+    "PFOS SW",
+    "Top Raster",
+    "Top 5 Rasters",
+    "Top 15 Rasters",
+)
 
 ##PFOS GW RMSE/ MAE
-PFOS_GW5 = top_5(PFOS_GW_data)
-PFOS_GW1 = top_1(PFOS_GW_data)
-PFOS_GW_long = long_method_stat_comp(PFOS_GW_data)
+PFOS_GW5 = top_5(PFOS_GW_nouk)
+PFOS_GW1 = top_1(PFOS_GW_nouk)
+PFOS_GW_long = long_method_stat_comp(PFOS_GW_nouk)
 PFOS_GW5_long = long_method_stat_comp(PFOS_GW5)
 PFOS_GW1_long = long_method_stat_comp(PFOS_GW1)
 
-plot_interp_MAE(PFOS_GW_long, PFOS_GW5_long, PFOS_GW1_long, "PFOS GW")
-plot_interp_RMSE(PFOS_GW_long, PFOS_GW5_long, PFOS_GW1_long, "PFOS GW")
+plot_interp_MAE(
+    PFOS_GW_long,
+    PFOS_GW5_long,
+    PFOS_GW1_long,
+    "PFOS GW",
+    "Top Raster",
+    "Top 5 Rasters",
+    "Top 15 Rasters",
+)
+plot_interp_RMSE(
+    PFOS_GW_long,
+    PFOS_GW5_long,
+    PFOS_GW1_long,
+    "PFOS GW",
+    "Top Raster",
+    "Top 5 Rasters",
+    "Top 15 Rasters",
+)
 
 
 PFOS_GW_Timing = pd.read_csv("./Interpolation_testing/PFOS_GW/PFOS_GW_timing_long.csv")
